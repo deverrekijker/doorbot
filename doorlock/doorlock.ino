@@ -146,14 +146,10 @@ void setup(void)
 
 void loop(void)
 {
-	for(;;)
-	{
-		cur = millis();
-		command_poll();
-		if ( (lock_state == DOOR_UNLOCKED) && ( (cur-unlock_time) > TIMEOUT ) )
-			lock_door();
+	cur = millis();
+	command_poll();
+	if ( (lock_state == DOOR_UNLOCKED) && ( (cur-unlock_time) > TIMEOUT ) )
+		lock_door();
 
-		sensor_poll();
-	}
+	sensor_poll();
 }
-
