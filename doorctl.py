@@ -14,13 +14,19 @@ try:
 except ImportError:
     def valid_rfid(rfid):
         return True
+
+
     def encode_rfid(rfid):
         return rfid
+
+
     def decode_rfid(rfid):
         return rfid
 
+
 def path_relative(name):
     return os.path.join(os.path.dirname(__file__), name)
+
 
 dbfile = path_relative("db/user.db")
 
@@ -28,27 +34,30 @@ host, port = '::1', 4242
 
 conn = None
 
+
 def get_conn():
     global conn
-    if conn == None:
+    if conn is None:
         conn = sqlite3.connect(dbfile)
     return conn
 
+
 def list_users():
     users = userdb.get_users(get_conn())
-    users.sort(key=lambda x:x['rfid'])
+    users.sort(key=lambda x: x['rfid'])
     for row in users:
         row['rfid'] = decode_rfid(row['rfid'])
-        row['authorised'] = ('disabled','enabled')[int(row['authorised']==True)]
+        row['authorised'] = ('disabled', 'enabled')[int(row['authorised'])]
         sys.stdout.write('{rfid} {authorised}\n'.format(**row))
+
 
 def export_users():
     for row in userdb.get_users(get_conn()):
         row['rfid'] = decode_rfid(row['rfid'])
         sys.stdout.write('{rfid} {authorised} {hash}\n'.format(**row))
 
-def change_pin(rfid, pin):
 
+def change_pin(rfid, pin):
     dbrfid = encode_rfid(rfid)
 
     if not re.match("^[0-9]*$", pin):
@@ -59,7 +68,6 @@ def change_pin(rfid, pin):
 
 
 def import_user(rfid, authorised, pin, plain=False):
-
     dbrfid = encode_rfid(rfid)
 
     if authorised not in '01':
@@ -79,7 +87,8 @@ def import_user(rfid, authorised, pin, plain=False):
     if not func(get_conn(), dbrfid, pin, int(authorised)):
         raise ValueError("fob {0} already exists".format(rfid))
 
-def import_users(plain=False):
+
+def import_users():
     for line in sys.stdin:
         line = line.rstrip('\n\r\0')
         fields = line.split(' ')
@@ -90,78 +99,81 @@ def import_users(plain=False):
             rfid, authorised, pin = fields
             import_user(rfid, authorised, pin)
 
-            print "fob {0} imported".format(rfid)
+            print("fob {0} imported".format(rfid))
 
         except ValueError as e:
-            print str(e)
+            print(str(e))
 
-def import_plain():
-    import_users(plain=True)
 
 def delete(rfid):
     if valid_rfid(rfid):
         if userdb.del_user(get_conn(), encode_rfid(rfid)):
-            print "fob deleted"
+            print("fob deleted")
         else:
-            print "fob not in the system"
+            print("fob not in the system")
     else:
-        print "bad fob code {0}".format(rfid)
+        print("bad fob code {0}".format(rfid))
+
 
 def enable(rfid):
     if valid_rfid(rfid):
         if userdb.enable(get_conn(), encode_rfid(rfid)):
-            print "fob enabled"
+            print("fob enabled")
         else:
-            print "fob not in the system"
+            print("fob not in the system")
     else:
-        print "bad fob code {0}".format(rfid)
+        print("bad fob code {0}".format(rfid))
+
 
 def disable(rfid):
     if valid_rfid(rfid):
         if userdb.disable(get_conn(), encode_rfid(rfid)):
-            print "fob disabled"
+            print("fob disabled")
         else:
-            print "fob not in the system"
+            print("fob not in the system")
     else:
-        print "bad fob code {0}".format(rfid)
+        print("bad fob code {0}".format(rfid))
+
 
 sock_commands = ('addkey', 'openmode', 'authmode', 'resetpin', 'rfidlisten', 'shutdown', 'restart')
 
 db_commands = collections.OrderedDict([
-    ( 'initdb'       , (userdb.init_db, 0, '') ),
-    ( 'list'         , (list_users, 0, '') ),
-    ( 'export'       , (export_users, 0, '') ),
-    ( 'import'       , (import_users, 0, ' < file') ),
-    ( 'import-plain' , (import_plain, 0, ' < file') ),
-    ( 'delete'       , (delete, 1, ' <key-id>') ),
-    ( 'enable'       , (enable, 1, ' <key-id>') ),
-    ( 'disable'      , (disable, 1, ' <key-id>') ),
+    ('initdb', (userdb.init_db, 0, '')),
+    ('list', (list_users, 0, '')),
+    ('export', (export_users, 0, '')),
+    ('import', (import_users, 0, ' < file')),
+    ('import-plain', (import_users, 0, ' < file')),
+    ('delete', (delete, 1, ' <key-id>')),
+    ('enable', (enable, 1, ' <key-id>')),
+    ('disable', (disable, 1, ' <key-id>')),
 ])
 
-def usage():
-    subcmds = sock_commands+tuple(k+v[2] for k,v in db_commands.iteritems())
 
-    pre = "Usage: "+sys.argv[0]
+def usage():
+    subcmds = sock_commands + tuple(k + v[2] for k, v in db_commands.items())
+
+    pre = "Usage: " + sys.argv[0]
     for cmd in subcmds:
-        print pre+' '+cmd
-        pre = "       "+sys.argv[0]
+        print(pre + ' ' + cmd)
+        pre = "       " + sys.argv[0]
     sys.exit(1)
+
 
 def socket_command(command, close=True):
     s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    s.connect( (host, port) )
-    s.send(command+'\n')
+    s.connect((host, port))
+    s.send(command + '\n')
     if close:
         s.close()
     else:
         return s
 
-def doorctl(cmd, *args):
 
+def doorctl(cmd, *args):
     if cmd in sock_commands:
         if cmd == 'rfidlisten':
-            for line in socket_command(cmd, close = False).makefile():
-                print decode_rfid(line.rstrip('\n\r\0'))
+            for line in socket_command(cmd, close=False).makefile():
+                print(decode_rfid(line.rstrip('\n\r\0')))
         else:
             socket_command(cmd)
     elif cmd in db_commands:
@@ -176,4 +188,3 @@ if __name__ == '__main__':
         usage()
 
     doorctl(*sys.argv[1:])
-

@@ -7,8 +7,8 @@ from threading import Lock
 
 log = logging.getLogger("recoverserial")
 
-class RecoverSerial(serial.Serial):
 
+class RecoverSerial(serial.Serial):
     def log_error(self, e):
         msg = str(e)
         if msg != self.lasterror:
@@ -21,6 +21,7 @@ class RecoverSerial(serial.Serial):
         self.lasterror = None
         while True:
             try:
+                # thy shalt not return from an __init__ function
                 return super(RecoverSerial, self).__init__(*args, **kwargs)
             except serial.SerialException as e:
                 self.log_error(e)
@@ -57,4 +58,3 @@ class RecoverSerial(serial.Serial):
             except serial.SerialException as e:
                 self.log_error(e)
                 self.recover(nr)
-

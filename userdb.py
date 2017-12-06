@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
-import sys, sqlite3, scrypt, random
+import sqlite3, scrypt, random
 
 
 def randstr(length):
-    return ''.join(chr(random.randint(0,255)) for i in range(length))
+    return ''.join(chr(random.randint(0, 255)) for i in range(length))
+
 
 def create_hash(pin):
     return scrypt.encrypt(randstr(64), pin, maxtime=1.).encode('hex')
+
 
 def verify_hash(pin_hash, pin):
     try:
@@ -15,6 +17,7 @@ def verify_hash(pin_hash, pin):
         return True
     except scrypt.error:
         return False
+
 
 USER_FIELDS = [
     'rfid',
@@ -28,22 +31,25 @@ USER_TYPES = {
     'authorised': int
 }
 
+
 def user_dict(row):
-    return dict( zip( USER_FIELDS, row) )
+    return dict(zip(USER_FIELDS, row))
+
 
 def init_db(conn):
     c = conn.cursor()
-    c.execute('''CREATE TABLE users '''+\
+    c.execute('''CREATE TABLE users ''' +
               '''(rfid text unique, hash text, authorised integer)''')
     conn.commit()
 
+
 def verify_login(conn, rfid, pin):
     c = conn.cursor()
-    c.execute('''SELECT rfid, hash, authorised FROM users WHERE rfid=?''', (rfid,) )
+    c.execute('''SELECT rfid, hash, authorised FROM users WHERE rfid=?''', (rfid,))
     result = c.fetchall()
 
     # prevent infoleak :-)
-    c.execute('''SELECT rfid, hash, authorised FROM users LIMIT 1''' )
+    c.execute('''SELECT rfid, hash, authorised FROM users LIMIT 1''')
     result_fake = c.fetchall()
 
     if len(result) > 0:
@@ -60,25 +66,29 @@ def verify_login(conn, rfid, pin):
     else:
         return None
 
+
 def import_user(conn, rfid, pinhash, authorised):
     c = conn.cursor()
     try:
         c.execute('''INSERT INTO users (rfid, hash, authorised) VALUES (?,?,?)''',
-                  (rfid, pinhash, int(authorised)) )
+                  (rfid, pinhash, int(authorised)))
         conn.commit()
     except sqlite3.IntegrityError:
         return False
     return c.rowcount != 0
 
+
 def add_user(conn, rfid, pin, authorised):
     return import_user(conn, rfid, create_hash(pin), authorised)
+
 
 def update_pin(conn, rfid, pin):
     c = conn.cursor()
     c.execute('''UPDATE users SET hash=? WHERE rfid=?''',
-              (create_hash(pin), rfid) )
+              (create_hash(pin), rfid))
     conn.commit()
     return c.rowcount != 0
+
 
 def enable(conn, rfid):
     c = conn.cursor()
@@ -86,32 +96,36 @@ def enable(conn, rfid):
     conn.commit()
     return c.rowcount != 0
 
+
 def disable(conn, rfid):
     c = conn.cursor()
     c.execute('''UPDATE users SET authorised=0 WHERE rfid=?''', (rfid,))
     conn.commit()
     return c.rowcount != 0
 
+
 def find_user(conn, rfid):
     c = conn.cursor()
-    c.execute('''SELECT rfid, hash, authorised FROM users WHERE rfid=?''', (rfid,) )
+    c.execute('''SELECT rfid, hash, authorised FROM users WHERE rfid=?''', (rfid,))
     result = c.fetchall()
     if len(result) > 0:
         return user_dict(result[0])
     else:
         return None
 
+
 def get_users(conn):
     c = conn.cursor()
     c.execute('''SELECT rfid, hash, authorised FROM users''')
-    return [ user_dict(row) for row in c ]
+    return [user_dict(row) for row in c]
+
 
 def user_exists(conn, rfid):
-    return find_user(conn, rfid) != None
+    return find_user(conn, rfid) is not None
+
 
 def del_user(conn, rfid):
     c = conn.cursor()
-    c.execute('''DELETE FROM users WHERE rfid=?''', (rfid,) )
+    c.execute('''DELETE FROM users WHERE rfid=?''', (rfid,))
     conn.commit()
     return c.rowcount
-

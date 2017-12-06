@@ -7,41 +7,43 @@ import userdb
 
 log = logging.getLogger("doorbot")
 
-AWAIT_RFID, AWAIT_PIN, OPEN, RELOCK, \
-ADD_KEY, ADD_KEY_PIN_NEW, ADD_KEY_PIN_VERIFY, \
-RESET_PIN, PINCHANGE_OLD, PINCHANGE_NEW, PINCHANGE_VERIFY, \
-OPEN_MODE = range(12)
+AWAIT_RFID, AWAIT_PIN, OPEN, RELOCK, ADD_KEY, ADD_KEY_PIN_NEW, ADD_KEY_PIN_VERIFY, RESET_PIN, PINCHANGE_OLD,\
+    PINCHANGE_NEW, PINCHANGE_VERIFY, OPEN_MODE = range(12)
 
 statenames = {
-    AWAIT_RFID          : 'AWAIT_RFID',
-    AWAIT_PIN           : 'AWAIT_PIN',
-    OPEN                : 'OPEN',
-    RELOCK              : 'RELOCK',
-    ADD_KEY             : 'ADD_KEY',
-    ADD_KEY_PIN_NEW     : 'ADD_KEY_PIN_NEW',
-    ADD_KEY_PIN_VERIFY  : 'ADD_KEY_PIN_VERIFY',
-    RESET_PIN           : 'RESET_PIN',
-    PINCHANGE_OLD       : 'PINCHANGE_OLD',
-    PINCHANGE_NEW       : 'PINCHANGE_NEW',
-    PINCHANGE_VERIFY    : 'PINCHANGE_VERIFY',
-    OPEN_MODE           : 'OPEN_MODE',
+    AWAIT_RFID: 'AWAIT_RFID',
+    AWAIT_PIN: 'AWAIT_PIN',
+    OPEN: 'OPEN',
+    RELOCK: 'RELOCK',
+    ADD_KEY: 'ADD_KEY',
+    ADD_KEY_PIN_NEW: 'ADD_KEY_PIN_NEW',
+    ADD_KEY_PIN_VERIFY: 'ADD_KEY_PIN_VERIFY',
+    RESET_PIN: 'RESET_PIN',
+    PINCHANGE_OLD: 'PINCHANGE_OLD',
+    PINCHANGE_NEW: 'PINCHANGE_NEW',
+    PINCHANGE_VERIFY: 'PINCHANGE_VERIFY',
+    OPEN_MODE: 'OPEN_MODE',
 }
 
 PIN_TIMEOUT = 15
 UNLOCK_TIMEOUT = 5
 RELOCK_TIMEOUT = 1
 
-class Doorbot(object):
 
+class Doorbot(object):
     def __init__(self, dbconn, door_io):
         self._dbconn = dbconn
         self._door_io = door_io
         self._timeout = None
+        self._state = None
+        self._rfid = ''
+        self._pin = ''
+        self._orig_pin = ''
 
     # states
 
     def set_state(self, state):
-        log.debug("state = %s", statenames[state]);
+        log.debug("state = %s", statenames[state])
         self._state = state
 
     def open_mode(self):
@@ -129,7 +131,8 @@ class Doorbot(object):
         if self._state == OPEN:
             self.relock()
 
-    def door_closed(self):
+    @staticmethod
+    def door_closed():
         log.info("door closed")
 
     def denied(self):
@@ -142,7 +145,7 @@ class Doorbot(object):
                 self.pinchange_old()
             else:
                 user_data = userdb.verify_login(self._dbconn, self._rfid, self._pin)
-                if user_data != None:
+                if user_data is not None:
                     log.info("Authentication successful")
                     log.debug("rfid = %s", user_data['rfid'])
                     self.do_open()
@@ -152,7 +155,7 @@ class Doorbot(object):
 
         elif self._state == PINCHANGE_OLD:
             user_data = userdb.verify_login(self._dbconn, self._rfid, self._pin)
-            if user_data != None:
+            if user_data is not None:
                 self.pinchange_new()
             else:
                 self.denied()
@@ -194,7 +197,8 @@ class Doorbot(object):
                 self._door_io.beep()
                 self._door_io.unlock()
 
-        elif self._state in (AWAIT_PIN, ADD_KEY_PIN_NEW, ADD_KEY_PIN_VERIFY, PINCHANGE_OLD, PINCHANGE_NEW, PINCHANGE_VERIFY):
+        elif self._state in (AWAIT_PIN, ADD_KEY_PIN_NEW, ADD_KEY_PIN_VERIFY, PINCHANGE_OLD, PINCHANGE_NEW,
+                             PINCHANGE_VERIFY):
             self._timeout = PIN_TIMEOUT
             if c in "0123456789CB":
                 self._door_io.beep()
@@ -227,10 +231,11 @@ class Doorbot(object):
 
     def timeout(self):
         log.debug("timeout")
-        if self._state in (AWAIT_PIN, ADD_KEY, RESET_PIN, ADD_KEY_PIN_NEW, ADD_KEY_PIN_VERIFY, PINCHANGE_OLD, PINCHANGE_NEW, PINCHANGE_VERIFY):
+        if self._state in (AWAIT_PIN, ADD_KEY, RESET_PIN, ADD_KEY_PIN_NEW, ADD_KEY_PIN_VERIFY, PINCHANGE_OLD,
+                           PINCHANGE_NEW, PINCHANGE_VERIFY):
             self.denied()
         if self._state == RELOCK:
-			self.await_rfid()
+            self.await_rfid()
         if self._state == OPEN:
             self.relock()
 
@@ -238,13 +243,13 @@ class Doorbot(object):
         self.await_rfid()
         start = 0.
         while True:
-            if self._timeout != None:
+            if self._timeout is not None:
                 start = time.time()
 
             event = self._door_io.get_event(self._timeout)
 
-            if self._timeout != None:
-                self._timeout -= time.time()-start
+            if self._timeout is not None:
+                self._timeout -= time.time() - start
                 if self._timeout <= 0:
                     self._timeout = None
                     self.timeout()
@@ -273,4 +278,3 @@ class Doorbot(object):
                 return True
             elif t == 'restart':
                 return False
-

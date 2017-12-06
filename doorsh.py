@@ -5,16 +5,17 @@ import sys
 
 import doorctl
 
+
 class DoorShell(cmd.Cmd):
     prompt = 'doorbot> '
 
     def get_args(self, line):
-        return [ x for x in line.split(' ') if x != '' ]
+        return [x for x in line.split(' ') if x != '']
 
     def __init__(self):
         cmd.Cmd.__init__(self)
 
-    def do_list(self, line):
+    def do_list(self):
         """list"""
         doorctl.list_users()
 
@@ -41,11 +42,11 @@ class DoorShell(cmd.Cmd):
         elif len(args) == 2:
             try:
                 doorctl.import_user(args[0], '1', args[1], plain=True)
-                print "ok"
+                print("ok")
             except ValueError as e:
-                print e
+                print(e)
         else:
-            print "usage: addkey [<fobid> <pin>]"
+            print("usage: addkey [<fobid> <pin>]")
 
     def do_openmode(self, line):
         """openmode"""
@@ -63,11 +64,11 @@ class DoorShell(cmd.Cmd):
         elif len(args) == 2:
             try:
                 doorctl.change_pin(args[0], args[1])
-                print "ok"
+                print("ok")
             except ValueError as e:
-                print e
+                print(e)
         else:
-            print "usage: resetpin [<fobid> <pin>]"
+            print("usage: resetpin [<fobid> <pin>]")
 
     def do_shutdown(self, line):
         """shutdown"""
@@ -84,6 +85,7 @@ class DoorShell(cmd.Cmd):
     def do_EOF(self, line):
         """quit"""
         sys.exit(0)
+
 
 if __name__ == '__main__':
     DoorShell().cmdloop()
